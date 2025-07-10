@@ -1,63 +1,53 @@
+from datetime import datetime, timedelta, timezone
 import requests
-import boto3
 import json
-from datetime import datetime, timezone
+import boto3
 
-def fetch_today_earthquake_data() -> list:
-    url = "https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/all_day.geojson"
+def get_yesterday_utc_range():
+    today = datetime.now(timezone.utc).date()
+    yesterday = today - timedelta(days=1)
+    return yesterday.strftime("%Y-%m-%d"), today.strftime("%Y-%m-%d")
+
+def fetch_earthquake_data(start_date: str, end_date: str) -> list:
+    url = (
+        "https://earthquake.usgs.gov/fdsnws/event/1/query"
+        f"?format=geojson&starttime={start_date}&endtime={end_date}"
+    )
     response = requests.get(url)
     response.raise_for_status()
-
     data = response.json()
-    features = data.get("features", [])
-    today_utc = datetime.now(timezone.utc).replace(hour=0, minute=0, second=0, microsecond=0)
-    today_timestamp_ms = int(today_utc.timestamp() * 1000)
 
     records = []
-
-    for feature in features:
+    for feature in data.get("features", []):
         props = feature.get("properties", {})
         coords = feature.get("geometry", {}).get("coordinates", [None, None, None])
         quake_time = props.get("time")
 
-        if quake_time and quake_time >= today_timestamp_ms:
-            records.append({
-                "id": feature.get("id"),
-                "magnitude": props.get("mag"),
-                "place": props.get("place"),
-                "time_utc": datetime.fromtimestamp(quake_time / 1000, tz=timezone.utc).isoformat(),
-                "longitude": coords[0],
-                "latitude": coords[1],
-                "depth_km": coords[2],
-                "status": props.get("status"),
-                "type": props.get("type"),
-                "tsunami": props.get("tsunami"),
-                "alert": props.get("alert"),
-            })
+        records.append({
+            "id": feature.get("id"),
+            "magnitude": props.get("mag"),
+            "place": props.get("place"),
+            "time_utc": datetime.utcfromtimestamp(quake_time / 1000).isoformat() if quake_time else None,
+            "longitude": coords[0],
+            "latitude": coords[1],
+            "depth_km": coords[2],
+            "status": props.get("status"),
+            "type": props.get("type"),
+            "tsunami": props.get("tsunami"),
+            "alert": props.get("alert"),
+        })
 
     return records
 
-def save_to_s3(records: list, bucket: str):
-    s3 = boto3.client("s3")
-    today_str = datetime.utcnow().strftime("%Y-%m-%d")
-    key = f"raw/{today_str}.json"
-    body = json.dumps(records)
-
-    s3.put_object(Bucket=bucket, Key=key, Body=body)
-    print(f"Saved {len(records)} records to s3://{bucket}/{key}")
-
 def lambda_handler(event=None, context=None):
-    BUCKET = "batch-data-demo-euc1"
+    BUCKET = "batch-data-demo-euc1" 
     s3 = boto3.client("s3")
 
-    records = fetch_today_earthquake_data()
-    today_str = datetime.utcnow().strftime("%Y-%m-%d")
-    key = f"raw/{today_str}.json"
-    body = json.dumps(records)
+    start_date, end_date = get_yesterday_utc_range()
+    records = fetch_earthquake_data(start_date, end_date)
 
-    s3.put_object(Bucket=BUCKET, Key=key, Body=body)
-    print(f"Saved {len(records)} records to s3://{BUCKET}/{key}")
-    return {
-        "statusCode": 200,
-        "body": f"{len(records)} records saved to {key}"
-    }
+    file_name = f"{start_date}.json"
+    s3_key = f"raw/{file_name}"
+    s3.put_object(Bucket=BUCKET, Key=s3_key, Body=json.dumps(records))
+    print(f"✅ Saved {len(records)} records to s3://{BUCKET}/{s3_key}")
+    return {"statusCode": 200, "body": f"Fetched {start_date} data"}
