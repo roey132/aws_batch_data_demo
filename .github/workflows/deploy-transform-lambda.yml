@@ -1,4 +1,4 @@
-name: Deploy Transform Lambda
+name: Deploy Transform Lambda (CSV + pandas)
 
 on:
   push:
@@ -25,23 +25,19 @@ jobs:
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: eu-central-1
 
-      - name: Download base Lambda zip from S3
+      - name: Build Lambda ZIP with pandas
         run: |
-          aws s3 cp s3://lambda-deployments-euc1/transform_base.zip transform_lambda.zip
+          rm -rf lambda_build transform_lambda.zip
+          mkdir lambda_build
+          pip install pandas -t lambda_build/
+          cp ingestion/transform.py lambda_build/
+          cd lambda_build && zip -r ../transform_lambda.zip . && cd ..
 
-      - name: Replace transform.py inside ZIP
-        run: |
-          unzip transform_lambda.zip -d lambda_temp
-          cp ingestion/transform.py lambda_temp/
-          cd lambda_temp
-          zip -r ../transform_lambda.zip .
-          cd ..
-
-      - name: Upload updated Lambda package to S3
+      - name: Upload ZIP to S3
         run: |
           aws s3 cp transform_lambda.zip s3://lambda-deployments-euc1/transform_lambda.zip
 
-      - name: Deploy to Lambda from S3
+      - name: Deploy to Lambda
         run: |
           aws lambda update-function-code \
             --function-name data-transform-fn \

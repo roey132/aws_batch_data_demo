@@ -2,13 +2,11 @@ import os
 import json
 import boto3
 import pandas as pd
-import pyarrow as pa
-import pyarrow.parquet as pq
 from datetime import datetime, timezone
 import io
 
 s3 = boto3.client("s3")
-BUCKET = "batch-data-demo-euc1" 
+BUCKET = "batch-data-demo-euc1"
 
 def get_target_date():
     date_str = os.environ.get("TARGET_DATE")
@@ -21,31 +19,27 @@ def lambda_handler(event=None, context=None):
     target_date = get_target_date()
     date_str = target_date.strftime("%Y-%m-%d")
 
-    # Define S3 paths
     raw_key = f"raw/{date_str}.json"
-    processed_key = f"processed/year={target_date.year}/month={target_date.month:02d}/day={target_date.day:02d}/data.parquet"
+    processed_key = f"processed/year={target_date.year}/month={target_date.month:02d}/day={target_date.day:02d}/data.csv"
 
-    # Download raw data
     try:
         response = s3.get_object(Bucket=BUCKET, Key=raw_key)
         raw_json = json.loads(response["Body"].read())
     except Exception as e:
-        print(f"Failed to read raw JSON: {e}")
+        print(f"❌ Failed to read raw file: {e}")
         return {"statusCode": 404, "body": f"Raw file not found: {raw_key}"}
 
-    # Load into DataFrame
+    # Load JSON to DataFrame
     df = pd.DataFrame(raw_json)
 
-    # Convert to Parquet in memory
-    table = pa.Table.from_pandas(df)
-    buf = io.BytesIO()
-    pq.write_table(table, buf)
+    # Save to in-memory CSV
+    buffer = io.StringIO()
+    df.to_csv(buffer, index=False)
 
-    # Upload to processed/
     try:
-        s3.put_object(Bucket=BUCKET, Key=processed_key, Body=buf.getvalue())
-        print(f"Wrote Parquet to s3://{BUCKET}/{processed_key}")
+        s3.put_object(Bucket=BUCKET, Key=processed_key, Body=buffer.getvalue())
+        print(f"✅ CSV written to s3://{BUCKET}/{processed_key}")
         return {"statusCode": 200, "body": f"Success for {date_str}"}
     except Exception as e:
-        print(f"Failed to write Parquet: {e}")
-        return {"statusCode": 500, "body": f"Failed to write for {date_str}"}
+        print(f"❌ Failed to upload CSV: {e}")
+        return {"statusCode": 500, "body": f"Error for {date_str}"}
