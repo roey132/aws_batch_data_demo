@@ -8,7 +8,7 @@ from datetime import datetime, timezone
 import io
 
 s3 = boto3.client("s3")
-BUCKET = "your-bucket-name"  # TODO: replace with your actual bucket name
+BUCKET = "batch-data-demo-euc1" 
 
 def get_target_date():
     date_str = os.environ.get("TARGET_DATE")
