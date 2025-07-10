@@ -2,7 +2,7 @@ import os
 import json
 import boto3
 import pandas as pd
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 import io
 
 s3 = boto3.client("s3")
@@ -13,7 +13,8 @@ def get_target_date():
     if date_str:
         return datetime.strptime(date_str, "%Y-%m-%d").date()
     else:
-        return datetime.now(timezone.utc).date()
+        # Default to YESTERDAY in UTC
+        return (datetime.now(timezone.utc).date() - timedelta(days=1))
 
 def lambda_handler(event=None, context=None):
     target_date = get_target_date()
@@ -29,10 +30,8 @@ def lambda_handler(event=None, context=None):
         print(f"❌ Failed to read raw file: {e}")
         return {"statusCode": 404, "body": f"Raw file not found: {raw_key}"}
 
-    # Load JSON to DataFrame
     df = pd.DataFrame(raw_json)
 
-    # Save to in-memory CSV
     buffer = io.StringIO()
     df.to_csv(buffer, index=False)
 
