@@ -1,25 +1,25 @@
 import requests
-import pandas as pd
+import boto3
+import json
 from datetime import datetime, timezone
 
-def fetch_today_earthquake_data() -> pd.DataFrame:
+def fetch_today_earthquake_data() -> list:
     url = "https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/all_day.geojson"
     response = requests.get(url)
     response.raise_for_status()
 
     data = response.json()
-    records = []
-
-    # Get today's UTC midnight timestamp
+    features = data.get("features", [])
     today_utc = datetime.now(timezone.utc).replace(hour=0, minute=0, second=0, microsecond=0)
     today_timestamp_ms = int(today_utc.timestamp() * 1000)
 
-    for feature in data.get("features", []):
+    records = []
+
+    for feature in features:
         props = feature.get("properties", {})
         coords = feature.get("geometry", {}).get("coordinates", [None, None, None])
         quake_time = props.get("time")
 
-        # Only include if time is today (in UTC)
         if quake_time and quake_time >= today_timestamp_ms:
             records.append({
                 "id": feature.get("id"),
@@ -35,9 +35,18 @@ def fetch_today_earthquake_data() -> pd.DataFrame:
                 "alert": props.get("alert"),
             })
 
-    return pd.DataFrame(records)
+    return records
 
+def save_to_s3(records: list, bucket: str):
+    s3 = boto3.client("s3")
+    today_str = datetime.utcnow().strftime("%Y-%m-%d")
+    key = f"raw/{today_str}.json"
+    body = json.dumps(records)
+
+    s3.put_object(Bucket=bucket, Key=key, Body=body)
+    print(f"✅ Saved {len(records)} records to s3://{bucket}/{key}")
 
 if __name__ == "__main__":
-    df = fetch_today_earthquake_data()  # Fetch limited data for testing
-    print(df.head())
+    BUCKET = "batch-data-demo-euc1" 
+    records = fetch_today_earthquake_data()
+    save_to_s3(records, BUCKET)
