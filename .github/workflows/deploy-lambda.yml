@@ -13,9 +13,12 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v3
 
-      - name: Zip Lambda function
+      - name: Build Lambda package with dependencies
         run: |
-          zip -j lambda.zip ingestion/get_data.py
+          mkdir -p lambda_build
+          pip install requests -t lambda_build/
+          cp ingestion/get_data.py lambda_build/
+          cd lambda_build && zip -r ../lambda.zip . && cd ..
 
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v1
