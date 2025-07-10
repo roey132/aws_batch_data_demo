@@ -47,7 +47,7 @@ def save_to_s3(records: list, bucket: str):
     print(f"✅ Saved {len(records)} records to s3://{bucket}/{key}")
 
 def lambda_handler(event=None, context=None):
-    BUCKET = "your-bucket-name"
+    BUCKET = "batch-data-demo-euc1"
     s3 = boto3.client("s3")
 
     records = fetch_today_earthquake_data()
