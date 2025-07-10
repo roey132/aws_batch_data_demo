@@ -16,13 +16,22 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: '3.11'
+          python-version: '3.12'
 
-      - name: Build transform Lambda package
+      - name: Install AWS CLI
+        uses: aws-actions/setup-aws-cli@v1
+
+      - name: Download base Lambda zip from S3
         run: |
-          pip install pandas pyarrow -t lambda_transform_build/
-          cp ingestion/transform.py lambda_transform_build/
-          cd lambda_transform_build && zip -r ../transform_lambda.zip . && cd ..
+          aws s3 cp s3://lambda-deployments-euc1/transform_base.zip transform_lambda.zip
+
+      - name: Replace transform.py inside ZIP
+        run: |
+          unzip transform_lambda.zip -d lambda_temp
+          cp ingestion/transform.py lambda_temp/
+          cd lambda_temp
+          zip -r ../transform_lambda.zip .
+          cd ..
 
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v1
@@ -31,8 +40,13 @@ jobs:
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: eu-central-1
 
-      - name: Deploy to Lambda
+      - name: Upload updated Lambda package to S3
+        run: |
+          aws s3 cp transform_lambda.zip s3://lambda-deployments-euc1/transform_lambda.zip
+
+      - name: Deploy to Lambda from S3
         run: |
           aws lambda update-function-code \
             --function-name data-transform-fn \
-            --zip-file fileb://transform_lambda.zip
+            --s3-bucket lambda-deployments-euc1 \
+            --s3-key transform_lambda.zip
