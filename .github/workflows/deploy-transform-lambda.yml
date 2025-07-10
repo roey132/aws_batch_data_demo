@@ -18,6 +18,13 @@ jobs:
         with:
           python-version: '3.12'
 
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v1
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: eu-central-1
+
       - name: Download base Lambda zip from S3
         run: |
           aws s3 cp s3://lambda-deployments-euc1/transform_base.zip transform_lambda.zip
@@ -29,13 +36,6 @@ jobs:
           cd lambda_temp
           zip -r ../transform_lambda.zip .
           cd ..
-
-      - name: Configure AWS credentials
-        uses: aws-actions/configure-aws-credentials@v1
-        with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: eu-central-1
 
       - name: Upload updated Lambda package to S3
         run: |
