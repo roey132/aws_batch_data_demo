@@ -44,7 +44,7 @@ def save_to_s3(records: list, bucket: str):
     body = json.dumps(records)
 
     s3.put_object(Bucket=bucket, Key=key, Body=body)
-    print(f"✅ Saved {len(records)} records to s3://{bucket}/{key}")
+    print(f"Saved {len(records)} records to s3://{bucket}/{key}")
 
 def lambda_handler(event=None, context=None):
     BUCKET = "batch-data-demo-euc1"
@@ -56,7 +56,7 @@ def lambda_handler(event=None, context=None):
     body = json.dumps(records)
 
     s3.put_object(Bucket=BUCKET, Key=key, Body=body)
-    print(f"✅ Saved {len(records)} records to s3://{BUCKET}/{key}")
+    print(f"Saved {len(records)} records to s3://{BUCKET}/{key}")
     return {
         "statusCode": 200,
         "body": f"{len(records)} records saved to {key}"
