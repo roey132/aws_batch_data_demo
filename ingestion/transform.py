@@ -34,13 +34,27 @@ def lambda_handler(event=None, context=None):
 
     # change time format to fit athena requirements
     df["time_utc"] = pd.to_datetime(df["time_utc"], format="ISO8601").dt.strftime("%Y-%m-%d %H:%M:%S")
-    
+
     buffer = io.StringIO()
     df.to_csv(buffer, index=False)
 
     try:
         s3.put_object(Bucket=BUCKET, Key=processed_key, Body=buffer.getvalue())
+        eventbridge = boto3.client('events')
+
+        eventbridge.put_events(
+            Entries=[
+                {
+                    'EventBusName': 'pipeline-events',
+                    'Source': 'transform.pipeline',
+                    'DetailType': 'transform-complete',
+                    'Detail': json.dumps({"target_date": date_str})
+                }
+            ]
+        )
+
         print(f"✅ CSV written to s3://{BUCKET}/{processed_key}")
+        
         return {"statusCode": 200, "body": f"Success for {date_str}"}
     except Exception as e:
         print(f"❌ Failed to upload CSV: {e}")
