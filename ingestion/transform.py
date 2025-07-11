@@ -32,6 +32,9 @@ def lambda_handler(event=None, context=None):
 
     df = pd.DataFrame(raw_json)
 
+    # change time format to fit athena requirements
+    df["time_utc"] = pd.to_datetime(df["time_utc"]).dt.strftime("%Y-%m-%d %H:%M:%S")
+    
     buffer = io.StringIO()
     df.to_csv(buffer, index=False)
 
