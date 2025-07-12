@@ -62,3 +62,7 @@ FROM batch_data_demo.earthquakes
 WHERE year = '2025' AND month = '07'
 ORDER BY time_utc DESC
 LIMIT 10;
+
+Python Version: 3.12
+Author: Roey Aharonov
+Date: 2025-07-12
