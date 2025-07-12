@@ -3,9 +3,10 @@ import json
 import boto3
 import pandas as pd
 from datetime import datetime, timedelta, timezone
-import io
 
 s3 = boto3.client("s3")
+eventbridge = boto3.client("events")
+
 BUCKET = "batch-data-demo-euc1"
 
 def get_target_date():
@@ -21,7 +22,7 @@ def lambda_handler(event=None, context=None):
     date_str = target_date.strftime("%Y-%m-%d")
 
     raw_key = f"raw/{date_str}.json"
-    processed_key = f"processed/year={target_date.year}/month={target_date.month:02d}/day={target_date.day:02d}/data.csv"
+    processed_key = f"processed/year={target_date.year}/month={target_date.month:02d}/day={target_date.day:02d}/data.json"
 
     try:
         response = s3.get_object(Bucket=BUCKET, Key=raw_key)
@@ -32,16 +33,18 @@ def lambda_handler(event=None, context=None):
 
     df = pd.DataFrame(raw_json)
 
-    # change time format to fit athena requirements
-    df["time_utc"] = pd.to_datetime(df["time_utc"], format="ISO8601").dt.strftime("%Y-%m-%d %H:%M:%S")
-
-    buffer = io.StringIO()
-    df.to_csv(buffer, index=False)
+    # Format time_utc field to standard timestamp format (optional but cleaner)
+    df["time_utc"] = pd.to_datetime(df["time_utc"], format="ISO8601", errors="coerce") \
+                        .dt.strftime("%Y-%m-%d %H:%M:%S")
 
     try:
-        s3.put_object(Bucket=BUCKET, Key=processed_key, Body=buffer.getvalue())
-        eventbridge = boto3.client('events')
+        # Convert to JSON array (standard JSON)
+        body = json.dumps(df.to_dict(orient="records"), indent=2)
 
+        s3.put_object(Bucket=BUCKET, Key=processed_key, Body=body)
+        print(f"✅ JSON written to s3://{BUCKET}/{processed_key}")
+
+        # Emit transform-complete event
         eventbridge.put_events(
             Entries=[
                 {
@@ -53,9 +56,7 @@ def lambda_handler(event=None, context=None):
             ]
         )
 
-        print(f"✅ CSV written to s3://{BUCKET}/{processed_key}")
-        
         return {"statusCode": 200, "body": f"Success for {date_str}"}
     except Exception as e:
-        print(f"❌ Failed to upload CSV: {e}")
+        print(f"❌ Failed to upload JSON: {e}")
         return {"statusCode": 500, "body": f"Error for {date_str}"}
