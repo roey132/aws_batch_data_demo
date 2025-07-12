@@ -45,10 +45,10 @@ This project demonstrates a cloud-native batch data pipeline that ingests, proce
 3. **Set up Athena**  
    Create external table + run `MSCK REPAIR TABLE`
 
-4. **Set up Glue Crawler**
+4. **Set up Glue Crawler**  
    Create a glue crawler for the athena table to run when needed
 
-5. **Set up Eventbridge flows**
+5. **Set up Eventbridge flows**  
    Create a flow that runs the lambda functions and crawler
    one after the other on success.
 
@@ -64,6 +64,6 @@ ORDER BY time_utc DESC
 LIMIT 10;
 ```
 
-Python Version: 3.12
-Author: Roey Aharonov
-Date: 2025-07-12
+- Python Version: 3.12
+- Author: Roey Aharonov
+- Date: 2025-07-12
