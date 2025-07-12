@@ -39,7 +39,7 @@ def lambda_handler(event=None, context=None):
 
     try:
         # Convert to JSON array (standard JSON)
-        body = json.dumps(df.to_dict(orient="records"), indent=2)
+        body = df.to_json(orient="records", lines=True)
 
         s3.put_object(Bucket=BUCKET, Key=processed_key, Body=body)
         print(f"✅ JSON written to s3://{BUCKET}/{processed_key}")
