@@ -24,13 +24,13 @@ This project demonstrates a cloud-native batch data pipeline that ingests, proce
 ---
 
 ## 📁 Folder Structure
-.
-├── ingestion/
-│ └── get_data.py # Ingests raw JSON from USGS
-│ └── transform.py # Converts raw → processed JSON
-├── terraform/ # (optional) Infra-as-code
-├── .github/workflows/ # Lambda CI/CD
-└── README.md
+
+- `ingestion/get_data.py` – Lambda function to ingest raw data from USGS API
+- `ingestion/transform.py` – Lambda function to process raw data to partitioned JSON
+- `.github/workflows/` – GitHub Actions for CI/CD of Lambda functions
+- `README.md` – Project documentation
+- `requirements.txt` – Dependencies for local dev and Lambda packaging
+
 
 ---
 
@@ -62,6 +62,7 @@ FROM batch_data_demo.earthquakes
 WHERE year = '2025' AND month = '07'
 ORDER BY time_utc DESC
 LIMIT 10;
+```
 
 Python Version: 3.12
 Author: Roey Aharonov
